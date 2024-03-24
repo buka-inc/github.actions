@@ -1,0 +1,21 @@
+name: "Get NodeJS Package Version"
+description: "获取NodeJS项目的版本号"
+
+inputs:
+  cwd:
+    description: "The directory containing 'package.json'"
+    required: false
+    default: "."
+
+outputs:
+  version:
+    description: Package version
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+    - id: version
+      shell: bash
+      run: echo "VERSION=$(cat $GITHUB_WORKSPACE/${{inputs.cwd}}/package.json | jq -r '.version')" >> "$GITHUB_OUTPUT"

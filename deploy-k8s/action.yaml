@@ -1,0 +1,41 @@
+name: "Deploy To Kubernetes Cluster"
+description: "将项目部署至Kubernetes集群"
+
+inputs:
+  kubeconfig:
+    description: "Kubernetes config"
+    required: true
+  kustomizationFilepath:
+    description: "Kustomization template filepath"
+    required: true
+  variables:
+    description: Variables use to render 'kustomization.template.yaml'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+    - uses: azure/setup-kubectl@v3
+    - uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{inputs.kubeconfig}}
+        context: deploy
+    - shell: bash
+      name: Generate manifests.yaml
+      run: |
+        export $(cat <<EOF | xargs
+        ${{inputs.variables}}
+        EOF
+        )
+        export DEPLOY_K8S_KUSTOMIZE_HOME=$(dirname ${{inputs.kustomizationFilepath}}) && \
+        mv ${{inputs.kustomizationFilepath}} $DEPLOY_K8S_KUSTOMIZE_HOME/kustomization.template.yaml && \
+        envsubst < $DEPLOY_K8S_KUSTOMIZE_HOME/kustomization.template.yaml > $DEPLOY_K8S_KUSTOMIZE_HOME/kustomization.yaml && \
+        kubectl kustomize $DEPLOY_K8S_KUSTOMIZE_HOME > manifests.yaml
+    - run: kubectl apply -f manifests.yaml --dry-run
+      name: Verify manifests.yaml
+      shell: bash
+    - run: kubectl apply -f manifests.yaml
+      name: Deploy to Kubernetes
+      shell: bash

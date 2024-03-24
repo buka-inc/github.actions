@@ -1,0 +1,41 @@
+name: "Check if the given docker image tag exists"
+description: "检查给定的Docker镜像标签是否存在"
+
+inputs:
+  username:
+    description: "Docker username"
+    required: true
+  password:
+    description: "Docker password"
+    required: true
+  registry:
+    description: "Docker registry"
+    required: false
+    default: "ghcr.io"
+  repository:
+    description: "Docker image repository"
+    required: true
+  tag:
+    description: "Docker image tag"
+    required: true
+
+outputs:
+  exists:
+    description: "Whether the given docker image tag exists"
+    value: ${{ steps.exists.outputs.exists }}
+
+runs:
+  using: composite
+  steps:
+    - name: "Check if the given docker image tag exists"
+      shell: bash
+      id: exists
+      run: |
+        RESULT=$(curl -sfL https://${{inputs.registry}}/v2/${{inputs.repository}}/manifests/${{inputs.tag}} \
+          -u '${{inputs.username}}:${{inputs.password}}' \
+          -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+          -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+          -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+          -H 'Accept: application/vnd.oci.image.index.v1+json' || true)
+        [ -z "$RESULT" ] && EXISTS=false || EXISTS=true
+        echo "EXISTS=$EXISTS" >> "$GITHUB_OUTPUT"
